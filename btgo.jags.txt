@@ -1,0 +1,128 @@
+######################################################################
+#                                                                    #
+# Supplement to:                                                     #
+# Murray et al (2017) Bar-tailed Godwit Analysis                     #
+#                                                                    # 			
+# Created on 4/4/2017 by Nicholas Murray & Colin Studds              #
+# ------------------------------------------------------------------ #
+#                                                                    #
+# Description:                                                       #
+# BUGS Model for Bar-tailed Godwit population analysis               #
+# For access to data for this model please email:                    #
+# n.murray@unsw.edu.au                                               #
+#                                                                    #
+# ------------------------------------------------------------------ #
+#                                                                    #
+# The analysis was performed with:                                   #
+#   JAGS 3.4.0 (64-bit)                                              #
+#   R 3.2.2 (Fire Safety)                                            #
+#   R library R2jags                                                 #
+#                                                                    #
+######################################################################
+
+
+
+
+
+model{
+
+## 1. PRIORS
+## 1a. Priors for random site effect
+
+for (s in 1:nsites){ 
+	ste[s] ~ dnorm(0, tau.site) # prior for 21 sites: normal prior with mean 0, variance of tau.site 
+	}
+	
+## 1b. Priors for random intercept and annual trend
+for (b in 1:nsub){
+	alpha[b] ~ dnorm(mu.alpha,tau.alpha) # random intercept
+	trend[b] ~ dnorm(mu.trend,tau.trend) # beta trend is the year covariate
+
+## 1c. Priors for covariate effects
+for (c in 1:ncovs){
+	theta[b,c] ~ dnorm(mu.theta, tau.theta) # theta prior for each covariate
+	}
+}
+
+## 1d. Prior for indicator variables
+for (b in 1:nsub){
+  for (c in 1:ncovs){
+    ind[b,c] ~ dbern(0.5)    # indicator variables prior: bernoulli distribution with mean 0.5
+ 	  beta[b,c] <- theta[b,c] * ind[b,c]  # normal distribution for covariate c in subspecies b.
+ 	}
+}
+
+## 1e. Prior for covariate coefficients
+for (k in 1:nyears){
+    beta.d[k] ~ dnorm(0,0.001)                # diffuse normal prior for each covariate (mean 0, precision 0.001)
+	}
+
+## 2. LIKELIHOOD
+## Model for abundance at i = site (21 sites), k = year (18 years), j = count (2 counts per year)
+for (i in 1:nsites){  
+  eps[i] ~ dnorm(0, tau.eps)                                
+  for (k in 1:nyears){
+  	N[i,k] ~ dpois(lambda[i,k])                                                    # N (abundance) is poission distributed with mean lambda.
+  	log(lambda[i,k]) <-  ste[site[i]] + alpha[sub[i]] + trend[sub[i]] * year[k] +  # link function and linear predictor
+  	beta[sub[i],1] * st.chl.std[i,k] + beta[sub[i],2] * br.chl.std[i,k] +  	
+  	beta[sub[i],3] * nb.chl.std[i,k] + beta[sub[i],4] * st.rai.std[i,k] +  
+  	beta[sub[i],5] * nb.rai.std[i,k] + beta[sub[i],6] * st.tem.std[i,k] + 
+    beta[sub[i],7] * br.tem.std[i,k] + eps[i]
+
+    ## Observation model for replicated counts, loop over 2 counts
+    for (j in 1:ncounts){ 
+
+    	y[i,j,k] ~ dbin(p[i,j,k], N[i,k])                                             # Detection, binomial distribution
+    	p[i,j,k] <- 1 / (1 + exp(-logit.p[i,j,k]))                                    # Define logit function p482 Kery BPA
+    	logit.p[i,j,k] ~ dnorm(beta.d[k], tau.p)                                      # Random delta defined implicitly (BPA p406). Delta is detection. called lp in Kery BPA.
+    	expect[i,j,k] <- p[i,j,k] * N[i,k]                                            # expected values (detection probability * N)
+    	E[i,j,k] <- pow((y[i,j,k] - expect[i,j,k]),2) / (expect[i,j,k]+0.5)           # a fit statistic for observed data (E) needed for GOF| distance of expected to observed values | Chi-squared discrepancy measure | a small constant (0.5) is added to the denominator to avoid possible division by zero (p398 Kery BPA)
+      y.new[i,j,k] ~ dbin(p[i,j,k], N[i,k])                                         # simulate replicate data with binimial distribution (y.new)
+      E.new[i,j,k] <- pow((y.new[i,j,k] - expect[i,j,k]),2) / (expect[i,j,k]+0.5)   # a fit statistic for simulated data (E.new)
+    }
+    site.year.p[i,k] <- mean(p[i,,k])                                               # detection probability per site year
+  	}
+}
+
+for (k in 1:nyears){
+   total.N[k] <- sum(N[,k])                      # total btgo population per year
+   men.N[k] <- sum(N[1:5,k])                     # menzbieri total population estimate per year
+   bau.N[k] <- sum(N[6:21,k])                    # baueri total population estimate per year
+   detection[k] <- mean(site.year.p[,k])         # overall detection probability
+   men.detection[k] <- mean(site.year.p[1:5,k])  # menzbieri detection probability per year
+   bau.detection[k] <- mean(site.year.p[6:21,k]) # baueri detection probability per yea
+   }
+
+## 3. DERIVED PARAMETERS
+## 3.1 Goodness of fit overall
+fit <- sum(E[,,])
+fit.new <- sum(E.new[,,])
+
+## 3.2 Goodness of fit  for each subspecies.
+men.fit <- sum(E[1:5,,])
+men.fit.new <- sum(E.new[1:5,,])
+bau.fit <- sum(E[6:21,,])
+bau.fit.new <- sum(E.new[6:21,,])
+
+### 3.3 Detection probability for both subspecies together and separately.
+mean.detection <- mean(detection[]) #overall
+men.mean.detection <- mean(men.detection[]) #menzbieri
+bau.mean.detection <- mean(bau.detection[]) #baueri
+
+### Hyperpriors and standard deviation definition
+mu.theta ~ dnorm(0,0.001)
+tau.theta ~ dgamma(0.001,0.001)
+sd.theta <- 1/sqrt(tau.theta)
+tau.site ~ dgamma(0.001,0.001)
+tau.alpha ~ dgamma(0.001,0.001)
+tau.trend ~ dgamma(0.001,0.001)
+tau.eps ~ dgamma(0.001,0.001)
+tau.p ~ dgamma(0.001,0.001)
+sd.site <- 1 / sqrt(tau.site)
+sd.alpha <- 1/sqrt(tau.alpha)
+sd.trend <- 1/sqrt(tau.trend) 
+sd.eps <- 1/sqrt(tau.eps) 
+sd.p <- 1/sqrt(tau.p) 
+mu.alpha ~ dnorm(0,0.001)
+mu.trend ~ dnorm(0,0.001)
+}
