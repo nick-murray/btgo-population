@@ -1,5 +1,6 @@
 
 #### Appendix 2 to Murray et al (2017)
+JAGS code for bar-tailed godwit (*Limosa lapponica*) population analysis
 
 *Description:*
 * BUGS Model for Bar-tailed Godwit population analysis
