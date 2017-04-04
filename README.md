@@ -1,7 +1,5 @@
 
-### Appendix 2
-
-Murray et al (2017)
+#### Appendix 2 to Murray et al (2017)
 
 *Description:*
 * BUGS Model for Bar-tailed Godwit population analysis
