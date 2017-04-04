@@ -12,4 +12,8 @@ n.murray@unsw.edu.au
 * R 3.2.2 (Fire Safety)
 * R2jags
 
-[website](https://murrayensis.org/)
+##### Figure 1 from the paper:
+![alt tag](https://github.com/nick-murray/btgo-population/blob/master/figures/Fig1-01.png)
+
+
+[https://murrayensis.org/](https://murrayensis.org/)
