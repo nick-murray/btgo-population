@@ -60,21 +60,23 @@ for (k in 1:nyears){
 ## 2. LIKELIHOOD
 ## Model for abundance
 for (i in 1:nsites){                                 
+  eps[i] ~ dnorm(0, tau.eps) 
   for (k in 1:nyears){
-  	eps[i,k] ~ dnorm(0, tau.eps) 
+  	# eps[i,k] ~ dnorm(0, tau.eps) 
   	N[i,k] ~ dpois(lambda[i,k])                                                    
   	log(lambda[i,k]) <-  ste[site[i]] + alpha[sub[i]] + trend[sub[i]] * year[k] +  
   	beta[sub[i],1] * st.chl.std[i,k] + beta[sub[i],2] * br.chl.std[i,k] +  	
   	beta[sub[i],3] * nb.chl.std[i,k] + beta[sub[i],4] * st.rai.std[i,k] +  
   	beta[sub[i],5] * nb.rai.std[i,k] + beta[sub[i],6] * st.tem.std[i,k] + 
-    beta[sub[i],7] * br.tem.std[i,k] + eps[i,k]
+    beta[sub[i],7] * br.tem.std[i,k] + eps[i]
 
     ## Observation model for replicated counts, loop over 2 counts
     for (j in 1:ncounts){ 
 
     	y[i,j,k] ~ dbin(p[i,j,k], N[i,k])                                            
-    	p[i,j,k] <- 1 / (1 + exp(-logit.p[i,j,k]))                                    
-    	logit.p[i,j,k] ~ dnorm(beta.d[k], tau.p)                                     
+    	#p[i,j,k] <- 1 / (1 + exp(-logit.p[i,j,k]))                                    
+    	#logit.p[i,j,k] ~ dnorm(beta.d[k], tau.p)                                     
+		p[i,j,k] <- dunif(0,1)
     	expect[i,j,k] <- p[i,j,k] * N[i,k]                                           
     	E[i,j,k] <- pow((y[i,j,k] - expect[i,j,k]),2) / (expect[i,j,k]+0.5)          
       y.new[i,j,k] ~ dbin(p[i,j,k], N[i,k])                                         
