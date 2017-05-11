@@ -7,9 +7,7 @@
 # ------------------------------------------------------------------ #
 #                                                                    #
 # Description:                                                       #
-# BUGS Model for Bar-tailed Godwit population analysis               #
-# For access to data for this model please email:                    #
-# n.murray@unsw.edu.au                                               #
+# JAGS code for Bar-tailed Godwit population analysis                #
 #                                                                    #
 # ------------------------------------------------------------------ #
 #                                                                    #
@@ -21,68 +19,60 @@
 ######################################################################
 
 
-
-
-
 model{
 
-## 1. PRIORS
-## 1a. Priors for random site effect
-
+## PRIORS
 for (s in 1:nsites){ 
 	ste[s] ~ dnorm(0, tau.site) 
 	}
 	
-## 1b. Priors for random intercept and annual trend
 for (b in 1:nsub){
 	alpha[b] ~ dnorm(mu.alpha,tau.alpha) 
 	trend[b] ~ dnorm(mu.trend,tau.trend) 
 
-## 1c. Priors for covariate effects
 for (c in 1:ncovs){
 	theta[b,c] ~ dnorm(mu.theta, tau.theta) 
 	}
 }
 
-## 1d. Prior for indicator variables
 for (b in 1:nsub){
   for (c in 1:ncovs){
-    ind[b,c] ~ dbern(0.5)    
-    beta[b,c] <- theta[b,c] * ind[b,c] 
+    ind[b,c] ~ dbern(0.5)    # not included in final model 
+    beta[b,c] <- theta[b,c] * ind[b,c] # modified in final model
 	}
 }
 
-## 1e. Prior for covariate coefficients
 for (k in 1:nyears){
     beta.d[k] ~ dnorm(0,0.001)               
 	}
 
-## 2. LIKELIHOOD
-## Model for abundance
+## LIKELIHOOD
+### Model for abundance
 for (i in 1:nsites){                                 
-  eps[i] ~ dnorm(0, tau.eps) 
   for (k in 1:nyears){
-  	# eps[i,k] ~ dnorm(0, tau.eps) 
+  	eps[i,k] ~ dnorm(0, tau.eps) 
   	N[i,k] ~ dpois(lambda[i,k])                                                    
-  	log(lambda[i,k]) <-  ste[site[i]] + alpha[sub[i]] + trend[sub[i]] * year[k] +  
-  	beta[sub[i],1] * st.chl.std[i,k] + beta[sub[i],2] * br.chl.std[i,k] +  	
-  	beta[sub[i],3] * nb.chl.std[i,k] + beta[sub[i],4] * st.rai.std[i,k] +  
-  	beta[sub[i],5] * nb.rai.std[i,k] + beta[sub[i],6] * st.tem.std[i,k] + 
-    beta[sub[i],7] * br.tem.std[i,k] + eps[i]
-
-    ## Observation model for replicated counts, loop over 2 counts
+  	log(lambda[i,k]) <-  ste[site[i]] + 
+  		alpha[sub[i]] + 
+  		trend[sub[i]] * year[k] +  
+  		beta[sub[i],1] * st.chl.std[i,k] + # not included in final model 
+  		beta[sub[i],2] * br.chl.std[i,k] + # not included in final model 
+  		beta[sub[i],3] * nb.chl.std[i,k] + 
+  		beta[sub[i],4] * st.rai.std[i,k] + # not included in final model  
+  		beta[sub[i],5] * nb.rai.std[i,k] + # not included in final model 
+  		beta[sub[i],6] * st.tem.std[i,k] + 
+    	beta[sub[i],7] * br.tem.std[i,k] + 
+    	eps[i,k]
+    ## Observation model
     for (j in 1:ncounts){ 
-
-    	y[i,j,k] ~ dbin(p[i,j,k], N[i,k])                                            
-    	#p[i,j,k] <- 1 / (1 + exp(-logit.p[i,j,k]))                                    
-    	#logit.p[i,j,k] ~ dnorm(beta.d[k], tau.p)                                     
+    	y[i,j,k] ~ dbin(p[i,j,k], N[i,k])                                                                               
 		p[i,j,k] <- dunif(0,1)
     	expect[i,j,k] <- p[i,j,k] * N[i,k]                                           
     	E[i,j,k] <- pow((y[i,j,k] - expect[i,j,k]),2) / (expect[i,j,k]+0.5)          
-      y.new[i,j,k] ~ dbin(p[i,j,k], N[i,k])                                         
-      E.new[i,j,k] <- pow((y.new[i,j,k] - expect[i,j,k]),2) / (expect[i,j,k]+0.5)   
+      	y.new[i,j,k] ~ dbin(p[i,j,k], N[i,k])                                         
+      	E.new[i,j,k] <- pow((y.new[i,j,k] - expect[i,j,k]),2) / (expect[i,j,k]+0.5)   
     }
-    site.year.p[i,k] <- mean(p[i,,k])                                               
+    site.year.p[i,k] <- mean(p[i,,k])        
   	}
 }
 
@@ -95,23 +85,23 @@ for (k in 1:nyears){
    bau.detection[k] <- mean(site.year.p[6:21,k]) 
    }
 
-## 3. DERIVED PARAMETERS
-## 3.1 Goodness of fit overall
+## DERIVED PARAMETERS
+### Goodness of fit overall
 fit <- sum(E[,,])
 fit.new <- sum(E.new[,,])
 
-## 3.2 Goodness of fit  for each subspecies.
+### Goodness of fit
 men.fit <- sum(E[1:5,,])
 men.fit.new <- sum(E.new[1:5,,])
 bau.fit <- sum(E[6:21,,])
 bau.fit.new <- sum(E.new[6:21,,])
 
-### 3.3 Detection probability for both subspecies together and separately.
+### Mean detection probability
 mean.detection <- mean(detection[]) #overall
 men.mean.detection <- mean(men.detection[]) #menzbieri
 bau.mean.detection <- mean(bau.detection[]) #baueri
 
-### Hyperpriors and standard deviation definition
+## HYPERPRIORS
 mu.theta ~ dnorm(0,0.001)
 tau.theta ~ dgamma(0.001,0.001)
 sd.theta <- 1/sqrt(tau.theta)
@@ -119,12 +109,10 @@ tau.site ~ dgamma(0.001,0.001)
 tau.alpha ~ dgamma(0.001,0.001)
 tau.trend ~ dgamma(0.001,0.001)
 tau.eps ~ dgamma(0.001,0.001)
-tau.p ~ dgamma(0.001,0.001)
 sd.site <- 1 / sqrt(tau.site)
 sd.alpha <- 1/sqrt(tau.alpha)
 sd.trend <- 1/sqrt(tau.trend) 
 sd.eps <- 1/sqrt(tau.eps) 
-sd.p <- 1/sqrt(tau.p) 
 mu.alpha ~ dnorm(0,0.001)
 mu.trend ~ dnorm(0,0.001)
 }
