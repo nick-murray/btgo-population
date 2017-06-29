@@ -7,7 +7,10 @@
 # ------------------------------------------------------------------ #
 #                                                                    #
 # Description:                                                       #
-# JAGS code for Bar-tailed Godwit population analysis                #
+# JAGS code for Bar-tailed Godwit population analysis.               #
+#                                                                    #
+# Note: we use nested indexing [sub] to simultaneously fit the model #
+#       to the two subspecies considered in our analysis             #
 #                                                                    #
 # ------------------------------------------------------------------ #
 #                                                                    #
